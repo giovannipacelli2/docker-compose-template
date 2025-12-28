@@ -1,0 +1,38 @@
+services:
+  db:
+    image: mysql:latest
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PWD:-root}
+      MYSQL_DATABASE: ${DB_NAME:-db}
+      MYSQL_USER: ${DB_USER:-db_user}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-db_pwd}
+      MYSQL_ALLOW_EMPTY_PASSWORD: true
+    volumes:
+      - mysql_data:/var/lib/mysql
+    ports:
+      - "3306:3306"
+    networks:
+      - mysql-network
+    expose:
+      - '3306'
+
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin:latest
+    restart: always
+    depends_on:
+      - db
+    environment:
+      PMA_HOST: db
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PWD:-root}
+    ports:
+      - "8080:80"
+    networks:
+      - mysql-network
+
+networks:
+  mysql-network:
+    driver: bridge
+
+volumes:
+    mysql_data:
