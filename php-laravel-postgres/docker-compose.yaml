@@ -1,27 +1,43 @@
 services:
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: caddy_reverse_proxy
+    ports:
+      - "443:443"
+      - "80:80"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - app-network
+    depends_on:
+      - backend
+    restart: unless-stopped
   backend:
     build:
       context: .
       args:
         - CUSTOM_ARG=custom_value
       dockerfile: Dockerfile
-    container_name: ${APP_NAME}_container
+    container_name: mycontainer
     ports:
       - "8080:8080"
     depends_on:
-      db:
+      pgdb:
         condition: service_healthy
     environment:
       - APP_URL=http://localhost:8080
-      - DB_HOST=db
-      - DB_CONNECTION=mysql
-      - DB_PORT=3306
+      - ASSET_URL=http://localhost:8080
+      - DB_HOST=pgdb
+      - DB_CONNECTION=pgsql
+      - DB_PORT=5432
       - APP_NAME=${APP_NAME}
       - APP_ENV=${APP_ENV}
       - APP_KEY=${APP_KEY}
       - APP_DEBUG=${APP_DEBUG}
       - APP_TIMEZONE=${APP_TIMEZONE}
-      - APP_URL=${APP_URL}
       - APP_LOCALE=${APP_LOCALE}
       - APP_FALLBACK_LOCALE=${APP_FALLBACK_LOCALE}
       - APP_FAKER_LOCALE=${APP_FAKER_LOCALE}
@@ -67,30 +83,51 @@ services:
     networks:
       - app-network
 
-  db:
-    image: mysql:8.0
-    restart: always
+  pgdb:
+    container_name: postgres_container
+    image: postgres
     environment:
-      MYSQL_DATABASE: ${DB_DATABASE}
-      MYSQL_ROOT_PASSWORD: root
-      MYSQL_PASSWORD: ${DB_PASSWORD}
-      MYSQL_USER: ${DB_USERNAME}
-    ports:
-      - "3307:3306"
+      POSTGRES_DB: ${DB_DATABASE}
+      POSTGRES_USER: ${DB_USERNAME}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      #PGDATA: /data/postgres
     volumes:
-      - mysql_data:/var/lib/mysql
+      - pgdb:/var/lib/postgresql
+    ports:
+      - "5433:5432"
+    expose:
+      - '5432'
     networks:
       - app-network
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
-      interval: 10s
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME} -d ${DB_DATABASE}"]
+      interval: 5s
       timeout: 5s
-      retries: 5
-      start_period: 10s
+      retries: 3
+    restart: unless-stopped
+
+  pgadmin:
+    container_name: pgadmin_container
+    image: dpage/pgadmin4
+    environment:
+      PGADMIN_DEFAULT_EMAIL: pgadmin4@pgadmin.org
+      PGADMIN_DEFAULT_PASSWORD: admin
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+    volumes:
+      - pgadmin:/var/lib/pgadmin
+
+    ports:
+      - "${PGADMIN_PORT:-5050}:80"
+    networks:
+      - app-network
+    restart: unless-stopped
+
+volumes:
+    pgdb:
+    pgadmin:
+    caddy_data:
+    caddy_config:
 
 networks:
   app-network:
     driver: bridge
-
-volumes:
-  mysql_data:

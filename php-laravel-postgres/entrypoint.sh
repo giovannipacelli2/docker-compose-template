@@ -20,6 +20,21 @@ check_db() {
     fi
 }
 
+# Fix permessi storage (importante quando si usa un volume)
+echo "Setting up storage permissions..."
+chown -R www-data:www-data /var/www/html/storage
+chmod -R 775 /var/www/html/storage
+
+# Crea tutte le sottocartelle necessarie se non esistono
+mkdir -p /var/www/html/storage/app/public
+mkdir -p /var/www/html/storage/framework/cache
+mkdir -p /var/www/html/storage/framework/sessions
+mkdir -p /var/www/html/storage/framework/views
+mkdir -p /var/www/html/storage/logs
+
+chmod 777 -R /var/www/html/storage/
+chown -R www-data:www-data /var/www/
+
 # Attendi che il database sia pronto
 
 # Ottimizza per produzione
@@ -29,14 +44,6 @@ else
     check_db
 fi
 
-# Esegui le migrazioni
-echo "Running migrations..."
-php artisan migrate --force -n || echo "Migration failed or already up to date"
-
-# Esegui i seeder
-echo "Running seeders..."
-php artisan db:seed --force -n || echo "Run seeders failed!"
-
-# Crea il link simbolico per lo storage pubblico
-echo "Creating storage link..."
-php artisan storage:link || echo "Storage link already exists"
+# Avvia Apache
+echo "Starting Apache..."
+exec apache2-foreground

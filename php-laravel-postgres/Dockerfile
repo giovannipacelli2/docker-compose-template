@@ -49,11 +49,13 @@ ENV APACHE_HTTP_PORT_NUMBER=8080
 RUN apt-get update && apt-get install -y \
     libxml2-dev libxslt-dev libzip-dev zip \
     libpng-dev libjpeg-dev libfreetype6-dev \
+    libpq-dev \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Installazione estensioni PHP
 RUN docker-php-ext-configure gd --with-freetype --with-jpeg && \
-    docker-php-ext-install intl xsl bcmath soap pdo pdo_mysql zip gd opcache
+    docker-php-ext-configure pgsql --with-pgsql=/usr/local/pgsql && \
+    docker-php-ext-install intl xsl bcmath soap pdo pdo_pgsql pgsql zip gd opcache
 
 # Configurazione Apache
 RUN a2enmod rewrite && \
@@ -72,4 +74,5 @@ COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
 EXPOSE 8080
+
 ENTRYPOINT ["/entrypoint.sh"]
